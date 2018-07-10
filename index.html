@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<style type="text/css">
+		.axis path, .axis line {
+			fill: none;
+			stroke: black;
+			stroke-width: 1;
+			shape-rendering: crispEdges;
+		}
+
+		.axis text {
+			font-size: 9px;
+			font-family: sans-serif;
+			fill: #555;
+			pointer-events: none;
+		}
+		
+		.axisPartial path {
+			fill: none;
+			stroke: white;
+			stroke-width: 1;
+			shape-rendering: crispEdges;
+		}
+
+		.axisPartial line {
+			display: none;
+		}
+
+		.axisPartial text {
+			display: none;
+		}
+	</style>
+</head>
+<body>
+
+<script type="text/javascript" src="http://d3js.org/d3.v3.min.js"></script>
+<script type="text/javascript">
+	drawChart();
+	function drawChart() {
+	    var svgWidth = 900,
+	        svgHeight = 500;
+	    var minX, maxX, minY, maxY;
+	    var _x, _X, _y, _Y;
+	    var axes = {
+	            main: {
+	                x: null,
+	                y: null
+	            },
+	            brush: {
+	                x: null,
+	                y: null
+	            }
+	        },
+	        rangeSelectorHeight = Math.floor(svgHeight * .2),
+	        mainChart,
+	        rangeSelector,
+	        parentAxs,
+	        parentAxsXAxis,
+	        parentAxsYAxis,
+	        rangeAxs,
+	        rangeAxsXAxis,
+	        rangeAxsYAxis,
+	        mainChartHeight = Math.floor(svgHeight * .8),
+	        margins = {
+	            main: {
+	                top: 20,
+	                right: 20,
+	                bottom: 10,
+	                left: 50
+	            },
+	            brush: {
+	                top: 20,
+	                right: 20,
+	                bottom: 10,
+	                left: 50
+	            }
+	        },
+	        scales = {
+	            main: {
+	                xScale: null,
+	                yScale: null
+	            },
+	            brush: {
+	                xScale: null,
+	                yScale: null
+	            }
+	        },
+	        rangeSelectorFn = {
+	            main: null,
+	            brush: null
+	        },
+	        svg;
+	    var parseDate = d3.time.format("%Y-%m-%d").parse;
+
+	    svg = d3.select('body')
+	        .append('svg')
+	        .attr('width', svgWidth)
+	        .attr('height', svgHeight);
+
+	    mainChart = svg.append('defs')
+	        .append('mainChart')
+	        .append('rect')
+	        .attr('x', margins.main.left)
+	        .attr('y', 0)
+	        .attr('width', function() {
+	            return svgWidth - margins.main.right - margins.main.left;
+	        })
+	        .attr('height', function() {
+	            return mainChartHeight;
+	        });
+
+	    parentAxs = svg.append('svg:g');
+
+	    parentAxsXAxis = svg.append('svg:g')
+	        .attr('class', 'axis');
+
+	    parentAxsYAxis = svg.append('svg:g')
+	        .attr('class', 'axis');
+
+	    rangeAxsXAxis = svg.append('svg:g')
+	        .attr('class', 'axisPartial');
+
+	    rangeAxsYAxis = svg.append('svg:g')
+	        .attr('class', 'axisPartial');
+
+	    rangeAxs = svg.append('svg:g')
+	        .attr('class', 'x brush')
+	        .attr('transform', function() {
+	            var x = 0,
+	                y = 180;
+	            return 'translate(' + x + ', ' + y + ')';
+	        });
+
+	    rangeSelector = d3.svg.brush()
+	        .on('brush', function() {
+	            var x = rangeSelector.empty() ? scales.main.xScale.domain() : rangeSelector.extent();
+	            console.log("Start" + x[0] + " End" + x[1]);
+	        });
+	    chartData = getData();
+
+	    scales.main.xScale = d3.time.scale()
+	        .domain([new Date("2013-01-01").getTime(), new Date("2013-06-30").getTime()])
+	        .range([margins.main.left, svgWidth - margins.main.right]);
+
+	    axes.main.x = d3.svg.axis()
+	        .scale(scales.main.xScale)
+	        .orient('bottom');
+
+	    scales.main.yScale = d3.scale.linear()
+	        .domain([
+	            50,
+	            100
+	        ])
+	        .range([margins.main.top, mainChartHeight - margins.main.bottom]);
+
+	    axes.main.y = d3.svg.axis()
+	        .scale(scales.main.yScale)
+	        .orient('left')
+	        .ticks(10);
+
+	    scales.brush.xScale = d3.time.scale()
+	        .domain([new Date("2013-01-01").getTime(), new Date("2013-06-30").getTime()])
+	        .range([margins.brush.left, svgWidth - margins.brush.right]);
+
+	    axes.brush.x = d3.svg.axis()
+	        .scale(scales.brush.xScale)
+	        .orient('bottom');
+
+	    scales.brush.yScale = d3.scale.linear()
+	        .domain([
+	            50,
+	            100
+	        ])
+	        .range([margins.brush.top, rangeSelectorHeight - margins.brush.bottom]);
+
+	    axes.brush.y = d3.svg.axis()
+	        .scale(scales.brush.yScale)
+	        .orient('left')
+	        .ticks(10);
+
+	    data = getData();
+
+	    var xx = d3.scale.ordinal().rangeRoundBands(.05, svgWidth);
+
+	    var yy = d3.scale.linear().range([0, mainChartHeight]);
+
+	    data.forEach(function(d) {
+	        d.date = parseDate(d.date);
+	        d.value = +d.value;
+	    });
+
+	    scales.main.xScale.domain([new Date("2013-01-01").getTime(), new Date("2013-06-30").getTime()]);
+	    scales.main.yScale.domain([390, 53]);
+
+	    rangeSelectorFn.main = d3.svg.line()
+	        .interpolate('linear')
+	        .x(function(d) {
+	            return scales.main.xScale(new Date(d.date).getTime());
+	        })
+	        .y(function(d) {
+	            return scales.main.yScale(d.value);
+	        });
+
+	    rangeSelectorFn.brush = d3.svg.line()
+	        .interpolate('linear')
+	        .x(function(d) {
+	            return scales.main.xScale(new Date(d.date).getTime());
+	        })
+	        .y(function(d) {
+	            return scales.brush.yScale(d.value);
+	        });
+
+	    svg.append("g")
+	        .attr("class", "x axis")
+	        .attr("transform", "translate(0," + mainChartHeight + ")")
+	        .call(scales.main.xScale)
+	        .selectAll("text")
+	        .style("text-anchor", "end")
+	        .attr("dx", "-.8em")
+	        .attr("dy", "-.55em")
+	        .attr("transform", "rotate(-90)");
+
+	    svg.append("g")
+	        .attr("class", "y axis")
+	        .call(scales.main.yScale)
+	        .append("text")
+	        .attr("transform", "rotate(-90)")
+	        .attr("y", 6)
+	        .attr("dy", ".71em")
+	        .style("text-anchor", "end")
+	        .text("Value ($)");
+
+	    svg.selectAll("bar")
+	        .data(data)
+	        .enter().append("rect")
+	        .style("fill", "steelblue")
+	        .style('fill-opacity', .8)
+	        .attr("x", function(d) {
+	            return scales.main.xScale(new Date(d.date).getTime());
+	        })
+	        .attr("width", 10)
+	        .attr("y", function(d) {
+	            return scales.main.yScale(d.value);
+	        })
+	        .attr("height", function(d) {
+	            return mainChartHeight - scales.main.yScale(d.value);
+	        });
+
+	    parentAxsXAxis.transition()
+	        .attr('transform', function() {
+	            var x = 0,
+	                y = 400;
+	            return 'translate(' + x + ',' + y + ')';
+	        })
+	        .call(axes.main.x);
+
+	    parentAxsYAxis.transition()
+	        .attr('transform', function() {
+	            var x = margins.main.left,
+	                y = 7;
+	            return 'translate(' + x + ',' + y + ')';
+	        })
+	        .call(axes.main.y);
+
+	    rangeAxsXAxis.transition()
+	        .attr('transform', function() {
+	            var x = 0,
+	                y = mainChartHeight + scales.brush.yScale(0);
+	            return 'translate(' + x + ',' + y + ')';
+	        })
+	        .call(axes.brush.x);
+
+	    rangeAxsYAxis.transition()
+	        .attr('transform', function() {
+	            var x = margins.brush.left,
+	                y = mainChartHeight;
+	            return 'translate(' + x + ',' + y + ')';
+	        })
+	        .call(axes.brush.y);
+
+	    var minTs = new Date("2013-01-01").getTime();
+	    var maxTs = new Date("2013-06-30").getTime();
+
+	    rangeSelector.x(scales.brush.xScale).extent([minTs, maxTs]);
+
+	    rangeAxs.call(rangeSelector)
+	        .selectAll('rect')
+	        .attr('y', margins.brush.top)
+	        .attr('height', function() {
+	            return 200;
+	        });
+
+	    rangeAxs.selectAll('rect.extent')
+	        .style('fill', '#ccc')
+	        .style('fill-opacity', .3)
+	        .style('stroke', '#999')
+	        .style('stroke-width', .5);
+
+	    rangeAxs.selectAll('g.resize')
+	        .selectAll('rect')
+	        .attr('rx', 3)
+	        .attr('ry', 3)
+	        .attr('width', 5)
+	        .style('visibility', 'visible')
+	        .style('fill', 'black')
+	        .style('fill-opacity', .7)
+	        .transition()
+	        .each('end', function() {
+	            var slider = d3.select(this);
+
+	            d3.select(this.parentNode).append('rect')
+	                .attr('class', 'handle')
+	                .attr('x', parseInt(slider.attr('x')) - 1)
+	                .attr('y', function() {
+	                    return 100;
+	                })
+	                .attr('rx', 3)
+	                .attr('ry', 3)
+	                .attr('width', parseInt(slider.attr('width')) + 2)
+	                .attr('height', function() {
+	                    return Math.floor((rangeSelectorHeight - margins.brush.top - margins.brush.bottom) / 2);
+	                })
+	                .style('fill', 'white')
+	                .style('stroke', 'grey')
+	                .style('stroke-width', 1)
+	                .style('opacity', 1);
+	        });
+	}
+
+	function getData() {
+	    return [{date:"2013-01-02",value:53},{date:"2013-01-04",value:63},{date:"2013-01-06",value:73},{date:"2013-01-15",value:53},{date:"2013-01-23",value:43},{date:"2013-01-28",value:103},{date:"2013-02-02",value:169},{date:"2013-02-10",value:129},{date:"2013-02-14",value:289},{date:"2013-02-19",value:139},{date:"2013-02-24",value:269},{date:"2013-02-28",value:229},{date:"2013-02-28",value:319},{date:"2013-02-29",value:369},{date:"2013-03-01",value:269},{date:"2013-03-04",value:169},{date:"2013-03-07",value:209},{date:"2013-03-10",value:69},{date:"2013-03-12",value:109},{date:"2013-03-14",value:89},{date:"2013-03-16",value:90},{date:"2013-03-18",value:88},{date:"2013-03-20",value:169},{date:"2013-03-22",value:269},{date:"2013-03-24",value:265},{date:"2013-03-26",value:69},{date:"2013-03-28",value:200},{date:"2013-04-02",value:344},{date:"2013-04-08",value:324},{date:"2013-04-12",value:180},{date:"2013-04-12",value:300},{date:"2013-04-14",value:284},{date:"2013-04-16",value:314},{date:"2013-04-19",value:324},{date:"2013-04-20",value:324},{date:"2013-04-22",value:324},{date:"2013-04-24",value:324},{date:"2013-04-26",value:324},{date:"2013-04-28",value:314},{date:"2013-05-02",value:376},{date:"2013-05-05",value:306},{date:"2013-05-08",value:316},{date:"2013-05-12",value:316},{date:"2013-05-14",value:311},{date:"2013-05-16",value:316},{date:"2013-05-17",value:276},{date:"2013-05-19",value:226},{date:"2013-05-20",value:296},{date:"2013-05-21",value:300},{date:"2013-05-25",value:316},{date:"2013-05-28",value:376},{date:"2013-06-02",value:390},{date:"2013-06-05",value:290},{date:"2013-06-08",value:260},{date:"2013-06-10",value:310},{date:"2013-06-12",value:300},{date:"2013-06-14",value:370},{date:"2013-06-16",value:310},{date:"2013-06-18",value:319},{date:"2013-06-20",value:390},{date:"2013-06-22",value:371},{date:"2013-06-24",value:390}];
+	}
+	
+</script>
+</body>
+</html>
